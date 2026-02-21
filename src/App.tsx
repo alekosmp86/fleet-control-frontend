@@ -1,6 +1,5 @@
 import CesiumViewer from "./components/CesiumViewer";
 import "./App.css";
-import { DataReceiver } from "./components/DataReceiver";
 
 function App() {
   return (
@@ -15,8 +14,6 @@ function App() {
       }}
     >
       <CesiumViewer />
-      {/* WebSocket connection for plane data */}
-      <DataReceiver />
     </div>
   );
 }

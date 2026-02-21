@@ -1,43 +1,63 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { PlaneBillboards } from "./PlaneBillboards";
 
-const CesiumViewer: React.FC = () => {
+export default function CesiumViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [viewer, setViewer] = useState<Cesium.Viewer>();
 
   useEffect(() => {
-    let viewer: Cesium.Viewer | undefined;
+    let viewerInstance: Cesium.Viewer | undefined;
+    let isMounted = true;
 
-    const initializeCesiumViewer = async () => {
+    const initialize = async () => {
       if (!containerRef.current) return;
 
       try {
-        // Initialize the Cesium Viewer with standard settings
-        viewer = new Cesium.Viewer(containerRef.current, {
-          terrainProvider: (await Cesium.createWorldTerrainAsync()) as any,
+        // Create terrain provider first
+        const terrainProvider = (await Cesium.createWorldTerrainAsync()) as any;
+
+        // Check if unmounted during await
+        if (!isMounted) return;
+
+        viewerInstance = new Cesium.Viewer(containerRef.current, {
+          terrainProvider,
           timeline: false,
           animation: false,
           baseLayerPicker: true,
         });
 
-        // Improve camera handling for better UX
-        viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
-      } catch (error) {
-        console.error("Failed to initialize Cesium Viewer:", error);
+        viewerInstance.clock.shouldAnimate = true;
+        viewerInstance.scene.screenSpaceCameraController.enableCollisionDetection = true;
+
+        // Double check mount status before setting state
+        if (isMounted) {
+          setViewer(viewerInstance);
+        } else {
+          console.warn(
+            "CesiumViewer unmounted before state set, destroying viewer.",
+          );
+          viewerInstance.destroy();
+        }
+      } catch (e) {
+        console.error("Failed to initialize Cesium Viewer", e);
       }
     };
 
-    initializeCesiumViewer();
+    initialize();
 
-    // Cleanup
     return () => {
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.destroy();
+      isMounted = false;
+      if (viewerInstance && !viewerInstance.isDestroyed()) {
+        viewerInstance.destroy();
       }
     };
   }, []);
 
-  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
-};
-
-export default CesiumViewer;
+  return (
+    <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+      {viewer && <PlaneBillboards viewer={viewer} />}
+    </div>
+  );
+}
